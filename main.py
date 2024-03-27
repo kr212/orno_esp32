@@ -32,50 +32,16 @@ WINTER_START=time.mktime((2000,10,1,0,0,0,0,1,-1))
 INTERVAL=int(2) #seconds
 
 
-#function definition
-def connect_wifi(SSID,password,ip):
-    """connect to wifi network"""
-    wlan=network.WLAN(network.STA_IF)
-    wlan.active(True)
 
-    if not wlan.isconnected():
-        wlan.connect(SSID,password)
-        while not wlan.isconnected():
-            pass
-        print(wlan.ifconfig())
-
-    #read config of wlan
-    conf=wlan.ifconfig()
-
-    wlan.disconnect()
-    wlan.active(False)
-    time.sleep_ms(50)
-
-    #connect with set IP
-    conf2=(ip,conf[1],conf[2],conf[3])
-    wlan.active(True)
-    wlan.ifconfig(conf2)
-    if not wlan.isconnected():
-        wlan.connect(SSID,password)
-        while not wlan.isconnected():
-            pass
-        print(wlan.ifconfig())
 
 
 #put everything in try..except to make sure that esp will restart in case of eny exception
 try:
-    #-------------------------------------------------------------------
-    #read SSID and password from file
-    file=open('wifi_pass','r')
-    ssid=file.readline().rstrip()
-    password=file.readline().rstrip()
-    file.close()
 
     #-------------------------------------------------------------------MAIN--
 
     error=False   #global error - restart all
 
-    connect_wifi(ssid,password,IP)
 
 
 
