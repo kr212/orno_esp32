@@ -18,7 +18,7 @@ CONTROL=PREF+'control'
 DATA=PREF+'data'
 TX_PIN=25
 RX_PIN=32
-CTRL_PIN=33
+CTRL_PIN=4
 
 
 
@@ -72,7 +72,9 @@ try:
         #open serial port
         try:
             #open port
-            port=UART.init(1,9600,parity=0,tx=TX_PIN,rx=RX_PIN,timeout=900) 
+            #port=UART.init(1,9600,parity=0,tx=TX_PIN,rx=RX_PIN,timeout=900)
+            port=UART.init(1,9600,parity=0,timeout=900)
+            
         except:
             #error during opening port
             time.sleep(10)
