@@ -73,7 +73,7 @@ try:
         try:
             #open port
             #port=UART.init(1,9600,parity=0,tx=TX_PIN,rx=RX_PIN,timeout=900)
-            port=UART.init(1,9600,parity=0,timeout=900)
+            port=UART.init(2,9600,parity=0,timeout=900)
             
         except:
             #error during opening port
