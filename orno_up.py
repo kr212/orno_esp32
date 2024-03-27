@@ -131,6 +131,7 @@ class Meter():
         self.id=id
         self.return_unit=return_unit
         self.c_pin=Pin(ctrl_pin,Pin.OUT)
+        self.c_pin.value(1)
 
     def _message(self,data,rw='r',payload=[]):
         """prepare data to send to Meter, only for read action!!!
@@ -168,11 +169,14 @@ class Meter():
         meter should send in 2nd byte the function code that was used, if it is not that number there was an error, its number is in 3rd byte"""
         if bytes[1]!=proper_answer:
             #read error information
-            match bytes[2]:
-                case 0x01: raise MeterInvalidFunctionCodeException
-                case 0x02: raise MeterWrongRegisterAddressException
-                case 0x03: raise MeterWrongDataLengthException
-                case _: raise MeterComunicationException
+            if bytes[2]==0x01:
+                raise MeterInvalidFunctionCodeException
+            elif bytes[2]==0x02:
+                raise MeterWrongRegisterAddressException
+            elif bytes[2]==0x03:
+                raise MeterWrongDataLengthException
+            else:
+                raise MeterComunicationException
     
     def _CRC_check(self,data):
         if crc.crc(data[:-2])!=(data[-2],data[-1]):
@@ -187,10 +191,12 @@ class Meter():
 
         self.c_pin.value(Meter.tx_pin_value)
         self.port.write(self._message(register))
+        UART.flush()
         #read first 3 bytes in case of error (won't be more in that case)
 
         self.c_pin.value(Meter.rx_pin_value)
         read=self.port.read(3)
+        print(read)
         
         self._check_error(read,register['fc_read'])
         
@@ -213,6 +219,7 @@ class Meter():
         
         self.c_pin.value(Meter.tx_pin_value)
         self.port.write(self._message(register,'w',payload_d))
+        UART.flush()
         #read first 3 bytes in case of error (won't be more in that case)
         self.c_pin.value(Meter.rx_pin_value)
         read=self.port.read(3)
