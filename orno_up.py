@@ -1,4 +1,4 @@
-from machine import UART, Pin
+from machine import UART, Pin, idle
 import time
 import crc
 
@@ -125,13 +125,13 @@ class Meter():
     }
     tx_pin_value=1
     rx_pin_value=0
+    add_time_ms=5  #extra time to wait until last byte is send
     
     def __init__(self,port,id,ctrl_pin,return_unit=False):
         self.port=port
         self.id=id
         self.return_unit=return_unit
         self.c_pin=Pin(ctrl_pin,Pin.OUT)
-        self.c_pin.value(1)
 
     def _message(self,data,rw='r',payload=[]):
         """prepare data to send to Meter, only for read action!!!
@@ -191,10 +191,14 @@ class Meter():
 
         self.c_pin.value(Meter.tx_pin_value)
         self.port.write(self._message(register))
-        UART.flush()
-        #read first 3 bytes in case of error (won't be more in that case)
+        #wait until all data is sent
+        while not self.port.txdone():
+            idle()
+        time.sleep_ms(Meter.add_time_ms)  #wait for last byte
 
         self.c_pin.value(Meter.rx_pin_value)
+        vals=self.port.any()
+        #read first 3 bytes in case of error (won't be more in that case)
         read=self.port.read(3)
         print(read)
         
@@ -219,9 +223,14 @@ class Meter():
         
         self.c_pin.value(Meter.tx_pin_value)
         self.port.write(self._message(register,'w',payload_d))
-        UART.flush()
-        #read first 3 bytes in case of error (won't be more in that case)
+        #wait until all data is sent
+        while not self.port.txdone():
+            idle()
+        time.sleep_ms(Meter.add_time_ms)  #wait for last byte
+
         self.c_pin.value(Meter.rx_pin_value)
+        vals=self.port.any()
+        #read first 3 bytes in case of error (won't be more in that case)
         read=self.port.read(3)
         
         self._check_error(read,register['fc_write'])
