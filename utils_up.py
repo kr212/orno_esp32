@@ -1,30 +1,31 @@
 import time
 
-holidays_const=[time.mktime((2000,1,1,0,0,0,0,1,-1)),time.mktime((2000,1,6,0,0,0,0,1,-1)),time.mktime((2000,5,1,0,0,0,0,1,-1)),time.mktime((2000,5,3,0,0,0,0,1,-1)),time.mktime((2000,8,15,0,0,0,0,1,-1)),time.mktime((2000,11,1,0,0,0,0,1,-1)),time.mktime((2000,11,11,0,0,0,0,1,-1)),time.mktime((2000,12,25,0,0,0,0,1,-1)),time.mktime((2000,12,26,0,0,0,0,1,-1))]
-
+#holidays_const=[time.mktime((2000,1,1,0,0,0,0,1)),time.mktime((2000,1,6,0,0,0,0,1)),time.mktime((2000,5,1,0,0,0,0,1)),time.mktime((2000,5,3,0,0,0,0,1)),time.mktime((2000,8,15,0,0,0,0,1)),time.mktime((2000,11,1,0,0,0,0,1)),time.mktime((2000,11,11,0,0,0,0,1)),time.mktime((2000,12,25,0,0,0,0,1)),time.mktime((2000,12,26,0,0,0,0,1))]
+holidays_const=[(1,1),(1,6),(5,1),(5,3),(8,15),(11,1),(11,11),(12,25),(12,26)]
 
 def now():
-    #return string with current date and time, without .xxxxxx seconds
+    """return string with current date and time, without .xxxxxx seconds"""
     now=time.localtime()
-    return str(now.tm_year)+'-'+str(now.tm_mon)+'-'+str(now.tm_mday)+' '+str(now.tm_hour)+':'+str(now.tm_min)+':'+str(now.tm_sec)
+    #now=(year, month, mday, hour, minute, second, weekday, yearday)
+    return str(now[0])+'-'+str(now[1])+'-'+str(now[2])+' '+str(now[3])+':'+str(now[4])+':'+str(now[5])
 
 def t_s(time_s):
     """convert int timestamp to str"""
     now=time.localtime(time_s)
-    return str(now.tm_year)+'-'+str(now.tm_mon)+'-'+str(now.tm_mday)+' '+str(now.tm_hour)+':'+str(now.tm_min)+':'+str(now.tm_sec)
+    return str(now[0])+'-'+str(now[1])+'-'+str(now[2])+' '+str(now[3])+':'+str(now[4])+':'+str(now[5])
   
 def press_sea_level(pressure,temp,height):
-    #calculates the pressure at sea level
-    #stopień baryczny
+    """calculates the pressure at sea level"""
+    #stopień baryczny/baric degree
     h=8000*(1+0.004*temp)/pressure
     
-    #ciśnienie na poziomie morza
+    #ciśnienie na poziomie morza,pressure at sea level
     P=pressure+(height/h)
     
-    #średnie ciśnienie
+    #średnie ciśnienie/mean pressure
     Psr=(pressure+P)/2
     
-    #średnia temperatura
+    #średnia temperatura/mean temperature
     tpm=temp+(0.6*height)/100
     
     tsr=(temp+tpm)/2
@@ -56,25 +57,30 @@ def _count_easter(year):
     month = int((h+l-7*m+114)/31)
     
     delta=int(3600*24) #seconds in day
-    #a im interested in the next day after easter
-    return time.mktime((year,month,day,0,0,0,0,1,-1)) + delta
+    #i am interested in the next day after easter
+    return time.mktime((year,month,day,0,0,0,0,1)) + delta
 
 def _count_bc(year):
     """counts date of "Boże ciało" in year, 60 days after Easter (59 after the next day after easter)"""
     return _count_easter(year) + int(59*3600*24)  #59 days after
 
 def is_holiday(day):
-#check if date is a holiday in Poland
+    """check if date is a holiday in Poland"""
     date=time.localtime(day)
-    for d in holidays_const:
-        if (d.tm_mon==date.tm_mon) and (d.tm_wday==date.tm_wday):
+    holidays=holidays_const
+    #add easter date
+    tmp_date=time.localtime(_count_easter(date[0]))
+    holidays=holidays+[(tmp_date[1],tmp_date[2])]
+    #add Boże ciało date
+    tmp_date=time.localtime(_count_bc(date[0]))
+    holidays=holidays+[(tmp_date[1],tmp_date[2])]
+
+    #check all dates
+    for d in holidays:
+        if (d[0]==date[1]) and (d[1]==date[2]):
             return True
-        
-    tmp_date=time.localtime(_count_easter(date.tm_year))
-    if (date.tm_mon==tmp_date.tm_mon) and ((date.tm_mday==tmp_date.tm_mday)):
-        return True
-    
-    tmp_date=time.localtime(_count_bc(date.tm_year))
-    if (date.tm_mon==tmp_date.tm_mon) and ((date.tm_mday==tmp_date.tm_mday)):
-        return True
     return False
+
+def stime():
+    """returns present time in seconds since epoch"""
+    return time.mktime(time.localtime())

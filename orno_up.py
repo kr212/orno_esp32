@@ -187,7 +187,7 @@ class Meter():
         returns payload: packet except first 3 and last 4 bytes
         input: register for example:{'fc_read':0x03,'reg_h':0x00,'reg_l':0x00,'length':4,'type':'int','unit':''}"""
         
-        message_tmp=self._message(register)
+        #message_tmp=self._message(register)
 
         self.c_pin.value(Meter.tx_pin_value)
         self.port.write(self._message(register))
@@ -197,7 +197,7 @@ class Meter():
         time.sleep_ms(Meter.add_time_ms)  #wait for last byte
 
         self.c_pin.value(Meter.rx_pin_value)
-        vals=self.port.any()
+        self.port.any()
         #read first 3 bytes in case of error (won't be more in that case)
         read=self.port.read(3)
         print(read)
@@ -229,7 +229,7 @@ class Meter():
         time.sleep_ms(Meter.add_time_ms)  #wait for last byte
 
         self.c_pin.value(Meter.rx_pin_value)
-        vals=self.port.any()
+        self.port.any()
         #read first 3 bytes in case of error (won't be more in that case)
         read=self.port.read(3)
         
@@ -287,13 +287,13 @@ class Meter():
             return value
 
     def get_time(self):
-        """reads time and data froom meter
+        """reads time and data from meter
         answer from meter: address, fc_read, length, s, m, h, week_day, day, month, year, ?? , CRC,CRC
         returns time in seconds"""
         
         
         data=self._send_receive_read(Meter.registers['Time'])
-        return time.mktime((self._BCD_to_int(data[6])+2000,self._BCD_to_int(data[5]),self._BCD_to_int(data[4]),self._BCD_to_int(data[2]),self._BCD_to_int(data[1]),self._BCD_to_int(data[0]),1,1,-1))
+        return time.mktime((self._BCD_to_int(data[6])+2000,self._BCD_to_int(data[5]),self._BCD_to_int(data[4]),self._BCD_to_int(data[2]),self._BCD_to_int(data[1]),self._BCD_to_int(data[0]),1,1))
         #return datetime.datetime(self._BCD_to_int(data[6])+2000,self._BCD_to_int(data[5]),self._BCD_to_int(data[4]),self._BCD_to_int(data[2]),self._BCD_to_int(data[1]),self._BCD_to_int(data[0]))
 
     def set_time(self,date_time='now'):
@@ -306,7 +306,8 @@ class Meter():
             set=time.localtime(date_time)
         #raw payload, not in BCD format
         #payload_send=[0x08,set.second,set.minute,set.hour,set.isoweekday(),set.day, set.month, set.year % 100, 0x00 ]
-        payload_send=[0x08,set.tm_sec,set.tm_min,set.tm_hour,set.tm_wday+1,set.tm_mday, set.tm_mon, set.tm_year % 100, 0x00 ]
+        #set=(year, month, mday, hour, minute, second, weekday, yearday)
+        payload_send=[0x08,set[5],set[4],set[3],set[6]+1,set[2], set[1], set[0] % 100, 0x00 ]
         
         #convert values to BCD (0x08 and 0x00 won't be changed)
         for pp in range(len(payload_send)):
@@ -330,7 +331,7 @@ class Meter():
             hours=self._BCD_to_int( data[i*3] )
             minutes=self._BCD_to_int( data[(i*3)+1] )
             tarrif=data[(i*3)+2] 
-            intervals.append( (time.mktime((2000,1,1,hours,minutes,0,1,1,-1)),tarrif))
+            intervals.append( (time.mktime((2000,1,1,hours,minutes,0,1,1)),tarrif))
         return intervals
 
     def set_interval(self,number,h1_list,m1=0x00,t1=0x00,h2=0x00,m2=0x00,t2=0x00,h3=0x00,m3=0x00,t3=0x00,h4=0x00,m4=0x00,t4=0x00,h5=0x00,m5=0x00,t5=0x00,h6=0x00,m6=0x00,t6=0x00,h7=0x00,m7=0x00,t7=0x00,h8=0x00,m8=0x00,t8=0x00):
@@ -348,8 +349,9 @@ class Meter():
                 payload_send.append(0x00)
             for set in range(len(h1_list)):
                 time_tmp=time.localtime(h1_list[set][0])
-                payload_send[set*3]=self._int_to_BCD(time_tmp.tm_hour)
-                payload_send[set*3+1]=self._int_to_BCD(time_tmp.tm_min)
+                #time_tmp=(year, month, mday, hour, minute, second, weekday, yearday)
+                payload_send[set*3]=self._int_to_BCD(time_tmp[3])
+                payload_send[set*3+1]=self._int_to_BCD(time_tmp[4])
                 payload_send[set*3+2]=h1_list[set][1]
         else:
             #got integers
@@ -381,7 +383,7 @@ class Meter():
             if (months==0) or (days==0):
                 #no more data
                 break
-            zone.append( (time.mktime((2000,months,days,0,0,0,1,1,-1)),interval))
+            zone.append( (time.mktime((2000,months,days,0,0,0,1,1)),interval))
         return zone
 
     def set_zone(self,m1_list,d1=0x00,i1=0x00,m2=0x00,d2=0x00,i2=0x00,m3=0x00,d3=0x00,i3=0x00,m4=0x00,d4=0x00,i4=0x00,m5=0x00,d5=0x00,i5=0x00,m6=0x00,d6=0x00,i6=0x00,m7=0x00,d7=0x00,i7=0x00,m8=0x00,d8=0x00,i8=0x00):
@@ -397,8 +399,9 @@ class Meter():
                 payload_send.append(0x00)
             for set in range(len(m1_list)):
                 date_tmp=time.localtime(m1_list[set][0])
-                payload_send[set*3]=self._int_to_BCD(date_tmp.tm_mon)
-                payload_send[set*3+1]=self._int_to_BCD(date_tmp.tm_wday)
+                #date_tmp=(year, month, mday, hour, minute, second, weekday, yearday)
+                payload_send[set*3]=self._int_to_BCD(date_tmp[1])
+                payload_send[set*3+1]=self._int_to_BCD(date_tmp[2])
                 payload_send[set*3+2]=m1_list[set][1]
         else:
             #got integers
@@ -488,10 +491,10 @@ class Meter():
         return all
     
     def sync_time(self,diff=60):
-        """synchronize time in meter with local time\
+        """synchronize time in meter with local time
             diff - min difference between internal and local time to set new time, in seconds"""
         inside=self.get_time()
-        local=time.time()
+        local=time.mktime(time.localtime())
 
         delta=diff
 
