@@ -125,7 +125,7 @@ class Meter():
     }
     tx_pin_value=1
     rx_pin_value=0
-    add_time_ms=5  #extra time to wait until last byte is send
+    add_time_ms=1  #extra time to wait until last byte is send
     
     def __init__(self,port,id,ctrl_pin,return_unit=False):
         self.port=port

@@ -1,4 +1,4 @@
-from machine import UART, Pin, soft_reset, WDT
+from machine import UART, Pin, soft_reset, WDT, freq
 import network
 import mqtt
 import time
@@ -16,8 +16,8 @@ PREF='meter_test/'
 STATUS=PREF+'status'
 CONTROL=PREF+'control'
 DATA=PREF+'data'
-TX_PIN=33
-RX_PIN=32
+TX_PIN=32
+RX_PIN=33
 CTRL_PIN=25
 
 
@@ -29,7 +29,7 @@ HOLIDAY_INTERVAL=[(time.mktime((2000,1,1,0,0,0,0,1)),3)]
 SUMMER_START=time.mktime((2000,4,1,0,0,0,0,1))
 WINTER_START=time.mktime((2000,10,1,0,0,0,0,1))
 #interval between reads
-INTERVAL=int(2) #seconds
+INTERVAL=int(4) #seconds
 
 
 
@@ -40,6 +40,7 @@ INTERVAL=int(2) #seconds
 
 #-------------------------------------------------------------------MAIN--
 
+freq(240000000)
 error=False   #global error - restart all
 
 
@@ -75,7 +76,7 @@ while not connected:
         #open port
         print('Connecting UART...')
         #port=UART.init(1,9600,parity=0,tx=TX_PIN,rx=RX_PIN,timeout=900)
-        port=UART(1,baudrate=9600,parity=0,tx=TX_PIN,rx=RX_PIN,timeout=900,timeout_char=100)
+        port=UART(2,baudrate=9600,parity=0,tx=TX_PIN,rx=RX_PIN,timeout=900,timeout_char=100)
         
     except Exception as e:
         #error during opening port
@@ -103,8 +104,10 @@ now=time.mktime(tim)
 
 
 if utils_up.is_holiday(now):
-    summer=time.mktime((tim.tm_year,SUMMER_START.tm_mon,SUMMER_START.tm_mday,0,0,0,0,1))
-    winter=time.mktime((tim.tm_year,WINTER_START.tm_mon,WINTER_START.tm_mday,0,0,0,0,1))
+    tmp_time=time.localtime(SUMMER_START)
+    summer=time.mktime((tim[0],tmp_time[1],tmp_time[2],0,0,0,0,1))
+    tmp_time=time.localtime(WINTER_START)
+    winter=time.mktime((tim[0],tmp_time[1],tmp_time[2],0,0,0,0,1))
 
     if (now>=summer and now<winter):
         int_to_change=1
@@ -148,7 +151,7 @@ while True:
         client.publish(f'{DATA}/{query}',data)
         
 
-        print(f"Published: {registers[query]:25} : {read_f:.2f}")
+        print(f"Published: {query:25} : {read_f:.2f}")
         
     
 
@@ -169,8 +172,10 @@ while True:
         holiday_checked=True
         print('Holiday check')
         if (utils_up.is_holiday(time_now_s)) and (set_in_meter=='ord'):
-            summer=time.mktime((time_now.tm_year,SUMMER_START.tm_mon,SUMMER_START.tm_mday,0,0,0,0,1))
-            winter=time.mktime((time_now.tm_year,WINTER_START.tm_mon,WINTER_START.tm_mday,0,0,0,0,1))
+            tmp_time=time.localtime(SUMMER_START)
+            summer=time.mktime((time_now[0],tmp_time[1],tmp_time[2],0,0,0,0,1))
+            tmp_time=time.localtime(WINTER_START)
+            winter=time.mktime((time_now[0],tmp_time[1],tmp_time[2],0,0,0,0,1))
 
             if (time_now_s>=summer and time_now_s<winter):
                 int_to_change=1
