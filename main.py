@@ -1,8 +1,10 @@
-from machine import UART, Pin, soft_reset, WDT, freq
+from machine import UART, Pin, soft_reset, WDT, freq, RTC
+from urequests import get
 import network
 import mqtt
 import time
 import json
+#import ntptime
 
 import utils_up
 import orno_up
@@ -31,7 +33,24 @@ WINTER_START=time.mktime((2000,10,1,0,0,0,0,1))
 #interval between reads
 INTERVAL=int(4) #seconds
 
+rtc=RTC()
 
+def time_sync():
+    """synchronise rtc time with ntp server and set timezone from worldtimeapi"""
+    req=get('http://worldtimeapi.org/api/timezone/Europe/Warsaw')
+    #'utc_offset':'+02:00'
+    date_str=req.json()['datetime']
+    year=int(date_str[:4])
+    month=int(date_str[5:7])
+    day=int(date_str[8:10])
+    hour=int(date_str[11:13])
+    minute=int(date_str[14:16])
+    second=int(date_str[17:19])
+    micro=int(date_str[20:26])
+    rtc.init((year,month,day,hour,minute,second,micro))
+    #ntptime.settime(timezone=2,'ntp.nask.pl')
+
+time_sync()
 
 
 
@@ -161,6 +180,8 @@ while True:
     #check time inside the meter every 1 minute past an hour
     if (time_now[0]==minute_of_time_check) and (not time_checked):
         #add time synchronization from NTP
+        #synchronise RTC time with worldtimeapi
+        time_sync()
         print(f'Time updated : {meter.sync_time()}')
         time_checked=True
     elif (time_now[0]!=minute_of_time_check):
