@@ -47,8 +47,12 @@ def time_sync():
     minute=int(date_str[14:16])
     second=int(date_str[17:19])
     micro=int(date_str[20:26])
-    rtc.init((year,month,day,hour,minute,second,micro))
-    print('RTC time set to:',rtc,datetime())
+    w_day=int(req.json()['day_of_week'])-1
+    
+    print(year,month,day,hour,minute,second,micro)
+    rtc.datetime((year,month,day,w_day,hour,minute,second,micro))
+    print('RTC time set to:',rtc.datetime())
+    time.sleep(100)
     #ntptime.settime(timezone=2,'ntp.nask.pl')
 
 time_sync()
