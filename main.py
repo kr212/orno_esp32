@@ -1,10 +1,10 @@
-from machine import UART, Pin, soft_reset, WDT, freq, RTC
+from machine import UART, Pin, soft_reset, WDT, freq, RTC, Timer
 from urequests import get
 import network
 import mqtt
 import time
 import json
-#import ntptime
+import ntptime
 
 import utils_up
 import orno_up
@@ -31,31 +31,73 @@ HOLIDAY_INTERVAL=[(time.mktime((2000,1,1,0,0,0,0,1)),3)]
 SUMMER_START=time.mktime((2000,4,1,0,0,0,0,1))
 WINTER_START=time.mktime((2000,10,1,0,0,0,0,1))
 #interval between reads
-INTERVAL=int(4) #seconds
+INTERVAL=int(2) #seconds
+ALARM_INTERVAL=3600
 
 rtc=RTC()
+ntptime.host='ntp.nask.pl'
 
-def time_sync():
+def time_sync_ntp():
     """synchronise rtc time with ntp server and set timezone from worldtimeapi"""
     req=get('http://worldtimeapi.org/api/timezone/Europe/Warsaw')
     #'utc_offset':'+02:00'
-    date_str=req.json()['datetime']
-    year=int(date_str[:4])
-    month=int(date_str[5:7])
-    day=int(date_str[8:10])
-    hour=int(date_str[11:13])
-    minute=int(date_str[14:16])
-    second=int(date_str[17:19])
-    micro=int(date_str[20:26])
-    w_day=int(req.json()['day_of_week'])-1
+    offset=int(req.json()['utc_offset'].split(':')[0])    #create int
+    ntptime.settime()
+    global rtc
     
-    print(year,month,day,hour,minute,second,micro)
-    rtc.datetime((year,month,day,w_day,hour,minute,second,micro))
-    print('RTC time set to:',rtc.datetime())
-    time.sleep(100)
-    #ntptime.settime(timezone=2,'ntp.nask.pl')
+    UTC=utils_up.stime()  #time in seconds
+    local=UTC+offset*3600
+    local_tuple=time.localtime(local)
+    rtc.datetime((local_tuple[0],local_tuple[1],local_tuple[2],local_tuple[6],local_tuple[3],local_tuple[4],local_tuple[5],0))
+    return f'RTC time set to: {rtc.datetime()}'
 
-time_sync()
+
+# def time_sync():
+#     """synchronise rtc time with ntp server and set timezone from worldtimeapi"""
+#     req=get('http://worldtimeapi.org/api/timezone/Europe/Warsaw')
+#     #'utc_offset':'+02:00'
+#     date_str=req.json()['datetime']
+#     year=int(date_str[:4])
+#     month=int(date_str[5:7])
+#     day=int(date_str[8:10])
+#     hour=int(date_str[11:13])
+#     minute=int(date_str[14:16])
+#     second=int(date_str[17:19])
+#     micro=int(date_str[20:26])
+#     w_day=int(req.json()['day_of_week'])-1
+    
+#     print(year,month,day,hour,minute,second,micro)
+#     rtc.datetime((year,month,day,w_day,hour,minute,second,micro))
+#     print('RTC time set to:',rtc.datetime())
+#     time.sleep(100)
+#     #ntptime.settime(timezone=2,'ntp.nask.pl')
+
+def holiday_check():
+    """check if there is a holiday day and change interval to measure only 3rd tariff that day"""
+    time_now=time.localtime()
+    time_now_s=time.mktime(time_now)
+    global set_in_meter
+    print('Holiday check')
+    if (utils_up.is_holiday(time_now_s) and (set_in_meter!='hol')):
+        tmp_time=time.localtime(SUMMER_START)
+        summer=time.mktime((time_now_s[0],tmp_time[1],tmp_time[2],0,0,0,0,1))
+        tmp_time=time.localtime(WINTER_START)
+        winter=time.mktime((time_now_s[0],tmp_time[1],tmp_time[2],0,0,0,0,1))
+
+        if (time_now_s>=summer and time_now_s<winter):
+            int_to_change=1
+        else:
+            int_to_change=2
+        
+        holiday=time_now_s+120 #next 2 minutes 
+        meter.set_interval(int_to_change,[(holiday,3)])
+        set_in_meter='hol'
+        return 'Set holiday tariff in meter'
+    elif (not utils_up.is_holiday(time_now_s)) and (set_in_meter!='ord'):
+        meter.set_interval(1,SUMMER_INTERVAL)
+        meter.set_interval(2,WINTER_INTERVAL)
+        set_in_meter='ord'
+        return 'Set standard tariff in meter'
 
 
 
@@ -65,7 +107,14 @@ time_sync()
 #-------------------------------------------------------------------MAIN--
 
 freq(240000000)
+
 error=False   #global error - restart all
+print(time_sync_ntp())   #sync the time with ntp server
+#time.sleep(10)    #temporary
+
+
+#what ind of day is set in meter
+set_in_meter='none'
 
 
 
@@ -100,7 +149,7 @@ while not connected:
         #open port
         print('Connecting UART...')
         #port=UART.init(1,9600,parity=0,tx=TX_PIN,rx=RX_PIN,timeout=900)
-        port=UART(2,baudrate=9600,parity=0,tx=TX_PIN,rx=RX_PIN,timeout=900,timeout_char=100)
+        port=UART(2,baudrate=9600,parity=0,tx=TX_PIN,rx=RX_PIN,timeout=900,timeout_char=1)
         
     except Exception as e:
         #error during opening port
@@ -118,35 +167,11 @@ registers=meter.get_reg_names('work')
 
 lines=len(registers)
 
-print(f'Time updated : {meter.sync_time()}')
-
+#check the time in meter
+print(f'Time updated in meter: {meter.sync_time()}')
 
 #check the holiday at startup
-tim=time.localtime()
-now=time.mktime(tim)
-
-
-
-if utils_up.is_holiday(now):
-    tmp_time=time.localtime(SUMMER_START)
-    summer=time.mktime((tim[0],tmp_time[1],tmp_time[2],0,0,0,0,1))
-    tmp_time=time.localtime(WINTER_START)
-    winter=time.mktime((tim[0],tmp_time[1],tmp_time[2],0,0,0,0,1))
-
-    if (now>=summer and now<winter):
-        int_to_change=1
-    else:
-        int_to_change=2
-    
-    holiday=now+120 #next 2 minutes 
-    meter.set_interval(int_to_change,[(holiday,3)])
-    set_in_meter='hol'
-    print('Set holiday tariff in meter')
-else:
-    meter.set_interval(1,SUMMER_INTERVAL)
-    meter.set_interval(2,WINTER_INTERVAL)
-    set_in_meter='ord'
-    print('Set standard tariff in meter')
+print(holiday_check())
 
 
 #read data from OR-WE_517 meter
@@ -154,18 +179,19 @@ else:
 previous_read_time=utils_up.stime()
 #was the time in the meter checked?
 time_checked=False
-minute_of_time_check=1
+minute_of_time_check=5
 holiday_checked=False
 
 
 #MAIN LOOP-----------------------------------------------------------------
 while True:
-    
+    now=time.ticks_ms()
     client.publish(STATUS,f'{utils_up.now()}: Meter running')
     
     #send queries for all type off data
     for query in registers:
         read_f=meter.read(query)
+        
 
         
         #publish
@@ -182,48 +208,51 @@ while True:
     time_now=time.localtime()
     time_now_s=time.mktime(time_now)
     #time_now is tuple (year, month, mday, hour, minute, second, weekday, yearday)
-    #check time inside the meter every 1 minute past an hour
+    #check time inside the meter every 5 minutes past an hour, also check ntp time and holiday
     if (time_now[0]==minute_of_time_check) and (not time_checked):
         #add time synchronization from NTP
         #synchronise RTC time with worldtimeapi
-        time_sync()
-        print(f'Time updated : {meter.sync_time()}')
+        print(time_sync_ntp())
+        print(f'Time updated in meter: {meter.sync_time()}')
+        print(holiday_check())
         time_checked=True
     elif (time_now[0]!=minute_of_time_check):
         time_checked=False
 
 
-    #check if it is a holiday day and change interval in the meter, always at 01:05
-    if ((time_now[4]==5) and (time_now[3]==1)) and (not holiday_checked):
-        holiday_checked=True
-        print('Holiday check')
-        if (utils_up.is_holiday(time_now_s)) and (set_in_meter=='ord'):
-            tmp_time=time.localtime(SUMMER_START)
-            summer=time.mktime((time_now[0],tmp_time[1],tmp_time[2],0,0,0,0,1))
-            tmp_time=time.localtime(WINTER_START)
-            winter=time.mktime((time_now[0],tmp_time[1],tmp_time[2],0,0,0,0,1))
+    # #check if it is a holiday day and change interval in the meter, always at 01:05
+    # if ((time_now[4]==5) and (time_now[3]==1)) and (not holiday_checked):
+    #     holiday_checked=True
+    #     print('Holiday check')
+    #     if (utils_up.is_holiday(time_now_s)) and (set_in_meter=='ord'):
+    #         tmp_time=time.localtime(SUMMER_START)
+    #         summer=time.mktime((time_now[0],tmp_time[1],tmp_time[2],0,0,0,0,1))
+    #         tmp_time=time.localtime(WINTER_START)
+    #         winter=time.mktime((time_now[0],tmp_time[1],tmp_time[2],0,0,0,0,1))
 
-            if (time_now_s>=summer and time_now_s<winter):
-                int_to_change=1
-            else:
-                int_to_change=2
+    #         if (time_now_s>=summer and time_now_s<winter):
+    #             int_to_change=1
+    #         else:
+    #             int_to_change=2
 
-            holiday=time_now_s+120
-            meter.set_interval(int_to_change,[(holiday,3)])
-            set_in_meter='hol'
-            print('Set holiday tariff in meter')
-        elif (not utils_up.is_holiday(time_now_s)) and (set_in_meter=='hol'):
-            meter.set_interval(1,SUMMER_INTERVAL)
-            meter.set_interval(2,WINTER_INTERVAL)
-            set_in_meter='ord'
-            print('Set standard tariff in meter')
-    elif (time_now[4]!=5) or (time_now[3]!=1):
-        holiday_checked=False
+    #         holiday=time_now_s+120
+    #         meter.set_interval(int_to_change,[(holiday,3)])
+    #         set_in_meter='hol'
+    #         print('Set holiday tariff in meter')
+    #     elif (not utils_up.is_holiday(time_now_s)) and (set_in_meter=='hol'):
+    #         meter.set_interval(1,SUMMER_INTERVAL)
+    #         meter.set_interval(2,WINTER_INTERVAL)
+    #         set_in_meter='ord'
+    #         print('Set standard tariff in meter')
+    # elif (time_now[4]!=5) or (time_now[3]!=1):
+    #     holiday_checked=False
         
     #print(meter.get_interval(1))
     #print(meter.get_interval(2))
     #print(meter.get_zone())
 
+    
+    print(f'Execution time: {time.ticks_ms()-now} ms')
     #time update
     time_now=utils_up.stime()
     #does the time between data reeds is to short?

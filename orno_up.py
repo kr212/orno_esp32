@@ -200,7 +200,7 @@ class Meter():
         self.port.any()
         #read first 3 bytes in case of error (won't be more in that case)
         read=self.port.read(3)
-        print(read)
+        #print(read)
         
         self._check_error(read,register['fc_read'])
         

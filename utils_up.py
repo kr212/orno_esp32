@@ -7,12 +7,14 @@ def now():
     """return string with current date and time, without .xxxxxx seconds"""
     now=time.localtime()
     #now=(year, month, mday, hour, minute, second, weekday, yearday)
-    return str(now[0])+'-'+str(now[1])+'-'+str(now[2])+' '+str(now[3])+':'+str(now[4])+':'+str(now[5])
+    #return str(now[0])+'-'+str(now[1])+'-'+str(now[2])+' '+str(now[3])+':'+str(now[4])+':'+str(now[5])
+    return f"{now[0]:04}-{now[1]:02}-{now[2]:02} {now[3]:02}:{now[4]:02}:{now[5]:02}"
 
 def t_s(time_s):
     """convert int timestamp to str"""
     now=time.localtime(time_s)
-    return str(now[0])+'-'+str(now[1])+'-'+str(now[2])+' '+str(now[3])+':'+str(now[4])+':'+str(now[5])
+    #return str(now[0])+'-'+str(now[1])+'-'+str(now[2])+' '+str(now[3])+':'+str(now[4])+':'+str(now[5])
+    return f"{now[0]:04}-{now[1]:02}-{now[2]:02} {now[3]:02}:{now[4]:02}:{now[5]:02}"
   
 def press_sea_level(pressure,temp,height):
     """calculates the pressure at sea level"""
