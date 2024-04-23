@@ -1,5 +1,5 @@
 from machine import UART, Pin, soft_reset, WDT, freq, RTC, Timer
-from urequests import get
+from requests import get
 import network
 import mqtt
 import time
@@ -39,7 +39,7 @@ ntptime.host='ntp.nask.pl'
 
 def time_sync_ntp():
     """synchronise rtc time with ntp server and set timezone from worldtimeapi"""
-    req=get('http://worldtimeapi.org/api/timezone/Europe/Warsaw')
+    req=get('https://worldtimeapi.org/api/timezone/Europe/Warsaw')
     #'utc_offset':'+02:00'
     offset=int(req.json()['utc_offset'].split(':')[0])    #create int
     ntptime.settime()
@@ -109,9 +109,13 @@ def holiday_check():
 freq(240000000)
 
 error=False   #global error - restart all
+print('Waiting...')
+time.sleep(5)
 print(time_sync_ntp())   #sync the time with ntp server
 #time.sleep(10)    #temporary
 
+#control LED
+led_pin=Pin(2,Pin.OUT)
 
 #what ind of day is set in meter
 set_in_meter='none'
@@ -190,7 +194,9 @@ while True:
     
     #send queries for all type off data
     for query in registers:
+        led_pin.on()
         read_f=meter.read(query)
+        led_pin.off()
         
 
         
