@@ -1,6 +1,6 @@
 # orno_esp32
 
-Using ESP32 module to get data from ORNO OR-WE_517 energy meter and send it to MQTT broker.
+Using ESP32 module to get data from ORNO OR-WE-517 energy meter and send it to MQTT broker.
 Application written in microPython.
 
 ## Hardware
