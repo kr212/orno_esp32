@@ -215,14 +215,14 @@ while True:
     time_now_s=time.mktime(time_now)
     #time_now is tuple (year, month, mday, hour, minute, second, weekday, yearday)
     #check time inside the meter every 5 minutes past an hour, also check ntp time and holiday
-    if (time_now[0]==minute_of_time_check) and (not time_checked):
+    if (time_now[4]==minute_of_time_check) and (not time_checked):
         #add time synchronization from NTP
         #synchronise RTC time with worldtimeapi
         print(time_sync_ntp())
         print(f'Time updated in meter: {meter.sync_time()}')
         print(holiday_check())
         time_checked=True
-    elif (time_now[0]!=minute_of_time_check):
+    elif (time_now[4]!=minute_of_time_check):
         time_checked=False
 
 
